@@ -1,0 +1,2 @@
+Compilation: make
+Execution: ./rcpsp_evo <file>
