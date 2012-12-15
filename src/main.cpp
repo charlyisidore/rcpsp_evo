@@ -1,29 +1,55 @@
 #include "problem.hpp"
 #include "solution.hpp"
+#include "arguments.hpp"
 #include <iostream>
 #include <fstream>
+#include <sstream>
+#include <string>
 #include <cstdlib>
 #include <ctime>
+#include <limits>
+
+void usage( char * program_name )
+{
+	std::cout << "Usage: " << program_name << " <instance-name> [size-of-population]" << std::endl;
+}
 
 int main( int argc, char * argv[] )
 {
-	if ( argc <= 1 )
+	std::ifstream f;                   // Instance file
+	Problem p;                         // Problem parameters
+	std::vector<Solution> population;
+	int bestCmax( std::numeric_limits<int>::max() );
+	int bestIndex( 0 );
+
+
+	// Initialization ------------------------------------------------------
+
+	// Simple and powerful argument parser using standard POSIX getopt
+	arguments::parse( argc, argv );
+
+	// Print usage
+	if ( arguments::filename.empty() )
 	{
-		std::cout << "Please enter a file name" << std::endl;
+		arguments::usage( argv[0] );
 		return 0;
 	}
 
-	std::srand( std::time( 0 ) );
+	// Set the initial random seed
+	if ( arguments::random_seed == 0 )
+	{
+		arguments::random_seed = std::time( 0 );
+	}
+	std::srand( arguments::random_seed );
 
-	std::ifstream f; // Instance file
-	Problem p;       // Problem parameters
-	Solution s;      // A solution of the problem
+	// Print arguments to terminal
+	arguments::print();
 
 	// Open an instance file
-	f.open( argv[1] );
+	f.open( arguments::filename.c_str() );
 	if ( !f.is_open() )
 	{
-		std::cout << "Invalid file name" << std::endl;
+		std::clog << "Invalid file name" << std::endl;
 		return 0;
 	}
 
@@ -31,32 +57,52 @@ int main( int argc, char * argv[] )
 	f >> p;
 
 	// Display the problem
-	std::cout << p << std::endl;
+	if ( arguments::print_problem )
+		std::cout << p << std::endl;
 
 	// Show precedence graph of the problem
-	p.exportDotPrecedenceGraph();
+	if ( arguments::print_graph )
+		p.exportDotPrecedenceGraph();
 
-	// Set the solution compatible with the problem
-	s.setProblem( p );
 
-	// Build a solution using GRASP
-	s.grasp( 0.7 );
+	// Algorithm -----------------------------------------------------------
 
-	// Possibility to manipulate solution as following
-	//s[i] = j;
+	// Generate an initial population
+	for ( int i = 0; i < arguments::population_size; ++i )
+	{
+		Solution s( p );
 
-	// Update changes
-	s.update();
+		// Build a solution using GRASP
+		s.grasp( arguments::alpha );
 
-	// Display list of jobs in the solution
-	std::cout << "Solution: " << s << std::endl;
+		// Possibility to manipulate solution as following
+		//s[i] = j;
 
-	// Display Cmax
-	std::cout << "Cmax = " << s.getCmax() << std::endl;
+		// Update changes
+		s.update();
+
+		// We add the current solution in the population
+		population.push_back( s );
+
+		if ( s.getCmax() < bestCmax )
+		{
+			bestIndex = i;
+			bestCmax = s.getCmax();
+		}
+	}
+
+
+	// Result --------------------------------------------------------------
+
+	std::cout << "Best solution: " << population[bestIndex] << std::endl;
+	std::cout << "Best makespan: " << bestCmax << std::endl;
 
 	// Show the schedulings
-	s.exportTable();
-	s.exportGnuplot();
+	if ( arguments::print_table )
+		population[bestIndex].exportTable();
+
+	if ( arguments::print_plot )
+		population[bestIndex].exportGnuplot();
 
 	return 0;
 }

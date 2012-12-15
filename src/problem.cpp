@@ -2,6 +2,8 @@
 #include "pstream.h"
 #include <sstream>
 #include <stdexcept>
+#include <iomanip>
+#include <cmath>
 
 Problem::Problem() :
 	_numJobs( 1 ),
@@ -84,6 +86,9 @@ int Problem::readValue( const std::string & line )
 // Show on terminal or output
 std::ostream & operator << ( std::ostream & os, const Problem & p )
 {
+	int intlen = std::floor( std::log( (float)p.getNumJobs() ) ) - 1;
+	int max_num_successors( 0 );
+
 	os
 		<< "#jobs = " << p.getNumJobs() << std::endl
 		<< "#resources = " << p.getNumResources() << std::endl;
@@ -95,23 +100,34 @@ std::ostream & operator << ( std::ostream & os, const Problem & p )
 	}
 	os << std::endl;
 
+	// max_num_successors is used to align predecessors
 	for ( int j = 0; j < p.getNumJobs(); ++j )
 	{
-		os << "Job " << j+1 << " | Duration: " << p.getJobDuration( j ) << " | Req:";
+		if ( max_num_successors < (int)p.getJobSuccessors( j ).size() )
+			max_num_successors = p.getJobSuccessors( j ).size();
+	}
+
+	for ( int j = 0; j < p.getNumJobs(); ++j )
+	{
+		os << "Job " << std::setw( intlen ) << j+1
+		   << " | Duration: " << std::setw( 2 ) << p.getJobDuration( j )
+		   << " | Req:";
 		for ( int k = 0; k < p.getNumResources(); ++k )
 		{
-			os << ' ' << p.getJobRequest( j, k );
+			os << ' ' << std::setw( intlen ) << p.getJobRequest( j, k );
 		}
 		os << " | Succ:";
 		for ( int i = 0; i < (int)p.getJobSuccessors( j ).size(); ++i )
 		{
-			os << ' ' << p.getJobSuccessors( j ).at( i )+1;
+			os << ' ' << std::setw( intlen ) << p.getJobSuccessors( j ).at( i )+1;
 		}
+		// Align predecessors
+		os << std::setw( ( intlen + 1 ) * ( max_num_successors - p.getJobSuccessors( j ).size() ) ) << "";
 #if 1
 		os << " | Pred:";
 		for ( int i = 0; i < (int)p.getJobPredecessors( j ).size(); ++i )
 		{
-			os << ' ' << p.getJobPredecessors( j ).at( i )+1;
+			os << ' ' << std::setw( intlen ) << p.getJobPredecessors( j ).at( i )+1;
 		}
 #endif
 		os << std::endl;
